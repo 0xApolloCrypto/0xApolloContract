@@ -54,14 +54,13 @@ contract Apollo is IApollo, Ownable {
     string public constant override symbol = "APL";
     uint8 public constant override decimals = 5;
 
-    mapping(address => bool) _isFeeExempt;
-    modifier validRecipient(address to) {
-        require(to != address(0));
-        _;
-    }
-
+    uint8 public constant RATE_DECIMALS = 7;
     uint256 private constant INITIAL_FRAGMENTS_SUPPLY = 600000 * 10**decimals;
     uint256 private constant PRESALE_FRAGMENTS_SUPPLY = 250000 * 10**decimals;
+    uint256 private constant TOTAL_GONS = type(uint256).max - (type(uint256).max % INITIAL_FRAGMENTS_SUPPLY);
+    uint256 private constant MAX_SUPPLY = 60 * 10**7 * 10**decimals;
+
+    uint256 public override totalSupply;
 
     uint256 public liquidityFee = 40;
     uint256 public treasuryFee = 25;
@@ -71,34 +70,35 @@ contract Apollo is IApollo, Ownable {
     uint256 public totalFee = liquidityFee + treasuryFee + safuuInsuranceFundFee + firePitFee;
     uint256 public feeDenominator = 1000;
 
+    uint256 public _initRebaseStartTime;
+    uint256 public _lastRebasedTime;
+    uint256 public _lastAddLiquidityTime;
+    uint256 private _gonsPerFragment;
+
     IERC20 public usdcToken;
+    IUniswapV2Router02 public router;
     address public autoLiquidityReceiver;
     address public treasuryReceiver;
     address public safuuInsuranceFundReceiver;
     address public firePit;
-    bool public swapEnabled = true;
-    IUniswapV2Router02 public router;
     address public pair;
+
+    bool public swapEnabled = true;
     bool inSwap = false;
-    uint8 public constant RATE_DECIMALS = 7;
-
-    uint256 private constant TOTAL_GONS = type(uint256).max - (type(uint256).max % INITIAL_FRAGMENTS_SUPPLY);
-    uint256 private constant MAX_SUPPLY = 60 * 10**7 * 10**decimals;
-
     bool public _autoRebase;
     bool public _autoAddLiquidity;
-    uint256 public _initRebaseStartTime;
-    uint256 public _lastRebasedTime;
-    uint256 public _lastAddLiquidityTime;
-    uint256 public _totalSupply;
-    uint256 private _gonsPerFragment;
 
+    mapping(address => bool) _isFeeExempt;
     mapping(address => uint256) private _gonBalances;
     mapping(address => mapping(address => uint256)) private _allowedFragments;
     mapping(address => bool) public blacklist;
 
     event LogRebase(uint256 indexed epoch, uint256 totalSupply);
 
+    modifier validRecipient(address to) {
+        require(to != address(0));
+        _;
+    }
     modifier swapping() {
         inSwap = true;
         _;
@@ -123,12 +123,12 @@ contract Apollo is IApollo, Ownable {
         _allowedFragments[presaleAddress][address(_router)] = type(uint256).max;
         usdc.approve(address(_router), type(uint256).max);
 
-        _totalSupply = INITIAL_FRAGMENTS_SUPPLY;
+        totalSupply = INITIAL_FRAGMENTS_SUPPLY;
         _gonBalances[treasuryReceiver] =
             type(uint256).max -
             (type(uint256).max % (INITIAL_FRAGMENTS_SUPPLY - PRESALE_FRAGMENTS_SUPPLY));
         _gonBalances[presaleAddress] = type(uint256).max - (type(uint256).max % PRESALE_FRAGMENTS_SUPPLY);
-        _gonsPerFragment = TOTAL_GONS.div(_totalSupply);
+        _gonsPerFragment = TOTAL_GONS.div(totalSupply);
         _initRebaseStartTime = block.timestamp;
         _lastRebasedTime = block.timestamp;
         _autoRebase = true;
@@ -161,15 +161,15 @@ contract Apollo is IApollo, Ownable {
         }
 
         for (uint256 i = 0; i < times; i++) {
-            _totalSupply = _totalSupply.mul((10**RATE_DECIMALS).add(rebaseRate)).div(10**RATE_DECIMALS);
+            totalSupply = totalSupply.mul((10**RATE_DECIMALS).add(rebaseRate)).div(10**RATE_DECIMALS);
         }
 
-        _gonsPerFragment = TOTAL_GONS.div(_totalSupply);
+        _gonsPerFragment = TOTAL_GONS.div(totalSupply);
         _lastRebasedTime = _lastRebasedTime.add(times.mul(15 minutes));
 
         IUniswapV2Pair(pair).sync();
 
-        emit LogRebase(epoch, _totalSupply);
+        emit LogRebase(epoch, totalSupply);
     }
 
     function transfer(address to, uint256 value) external override validRecipient(to) returns (bool) {
@@ -358,7 +358,7 @@ contract Apollo is IApollo, Ownable {
     function shouldRebase() internal view returns (bool) {
         return
             _autoRebase &&
-            (_totalSupply < MAX_SUPPLY) &&
+            (totalSupply < MAX_SUPPLY) &&
             msg.sender != pair &&
             !inSwap &&
             block.timestamp >= (_lastRebasedTime + 15 minutes);
@@ -458,10 +458,6 @@ contract Apollo is IApollo, Ownable {
     function setBotBlacklist(address _botAddress, bool _flag) external onlyOwner {
         require(isContract(_botAddress), "only contract address, not allowed exteranlly owned account");
         blacklist[_botAddress] = _flag;
-    }
-
-    function totalSupply() external view override returns (uint256) {
-        return _totalSupply;
     }
 
     function balanceOf(address who) external view override returns (uint256) {

@@ -6,12 +6,9 @@ pragma solidity ^0.8.0;
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
-// import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-// import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./IApollo.sol";
-import {IERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 library SafeMathInt {
     int256 private constant MIN_INT256 = int256(1) << 255;
@@ -53,18 +50,18 @@ contract Apollo is IApollo, Ownable {
     using SafeMath for uint256;
     using SafeMathInt for int256;
 
-    string public override name = "apl";
-    string public override symbol = "APL";
-    uint8 public override decimals = 5;
+    string public constant override name = "apl";
+    string public constant override symbol = "APL";
+    uint8 public constant override decimals = 5;
+
     mapping(address => bool) _isFeeExempt;
     modifier validRecipient(address to) {
         require(to != address(0));
         _;
     }
 
-    uint256 public constant DECIMALS = 5;
-    uint256 private constant INITIAL_FRAGMENTS_SUPPLY = 600000 * 10**DECIMALS;
-    uint256 private constant PRESALE_FRAGMENTS_SUPPLY = 250000 * 10**DECIMALS;
+    uint256 private constant INITIAL_FRAGMENTS_SUPPLY = 600000 * 10**decimals;
+    uint256 private constant PRESALE_FRAGMENTS_SUPPLY = 250000 * 10**decimals;
 
     uint256 public liquidityFee = 40;
     uint256 public treasuryFee = 25;
@@ -86,7 +83,7 @@ contract Apollo is IApollo, Ownable {
     uint8 public constant RATE_DECIMALS = 7;
 
     uint256 private constant TOTAL_GONS = type(uint256).max - (type(uint256).max % INITIAL_FRAGMENTS_SUPPLY);
-    uint256 private constant MAX_SUPPLY = 60 * 10**7 * 10**DECIMALS;
+    uint256 private constant MAX_SUPPLY = 60 * 10**7 * 10**decimals;
 
     bool public _autoRebase;
     bool public _autoAddLiquidity;

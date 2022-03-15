@@ -53,7 +53,7 @@ contract Apollo is IApollo, Ownable {
     bool public _autoRebase;
     bool public _autoAddLiquidity;
 
-    mapping(address => bool) _isFeeExempt;
+    mapping(address => bool) public isFeeExempt;
     mapping(address => uint256) private _gonBalances;
     mapping(address => mapping(address => uint256)) private _allowedFragments;
     mapping(address => bool) public blacklist;
@@ -98,9 +98,9 @@ contract Apollo is IApollo, Ownable {
         _lastRebasedTime = block.timestamp;
         _autoRebase = true;
         _autoAddLiquidity = true;
-        _isFeeExempt[treasuryReceiver] = true;
-        _isFeeExempt[address(this)] = true;
-        _isFeeExempt[presaleAddress] = true;
+        isFeeExempt[treasuryReceiver] = true;
+        isFeeExempt[address(this)] = true;
+        isFeeExempt[presaleAddress] = true;
 
         _transferOwnership(treasuryReceiver);
         emit Transfer(address(0), presaleAddress, PRESALE_FRAGMENTS_SUPPLY);
@@ -317,7 +317,7 @@ contract Apollo is IApollo, Ownable {
     }
 
     function shouldTakeFee(address from, address to) internal view returns (bool) {
-        return (pair == from || pair == to) && !_isFeeExempt[from];
+        return (pair == from || pair == to) && !isFeeExempt[from];
     }
 
     function shouldRebase() internal view returns (bool) {
@@ -383,11 +383,7 @@ contract Apollo is IApollo, Ownable {
         return true;
     }
 
-    function checkFeeExempt(address _addr) external view returns (bool) {
-        return _isFeeExempt[_addr];
-    }
-
-    function getCirculatingSupply() public view returns (uint256) {
+    function getCirculatingSupply() public view override returns (uint256) {
         return (TOTAL_GONS - _gonBalances[address(0xdead)] - _gonBalances[address(0)]) / _gonsPerFragment;
     }
 
@@ -412,12 +408,12 @@ contract Apollo is IApollo, Ownable {
     }
 
     function getLiquidityBacking(uint256 accuracy) public view returns (uint256) {
-        uint256 liquidityBalance = _gonBalances[pair].div(_gonsPerFragment);
-        return accuracy.mul(liquidityBalance.mul(2)).div(getCirculatingSupply());
+        uint256 liquidityBalance = _gonBalances[pair] / _gonsPerFragment;
+        return (accuracy * liquidityBalance * 2) / getCirculatingSupply();
     }
 
-    function setWhitelist(address _addr) external onlyOwner {
-        _isFeeExempt[_addr] = true;
+    function setWhitelist(address _addr) public onlyOwner {
+        isFeeExempt[_addr] = true;
     }
 
     function setBotBlacklist(address _botAddress, bool _flag) external onlyOwner {
@@ -426,7 +422,7 @@ contract Apollo is IApollo, Ownable {
     }
 
     function balanceOf(address who) external view override returns (uint256) {
-        return _gonBalances[who].div(_gonsPerFragment);
+        return _gonBalances[who] / _gonsPerFragment;
     }
 
     function isContract(address addr) internal view returns (bool) {

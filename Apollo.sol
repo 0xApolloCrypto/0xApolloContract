@@ -29,10 +29,10 @@ contract Apollo is IApollo, Ownable {
 
     uint256 public liquidityFee = 40;
     uint256 public treasuryFee = 25;
-    uint256 public safuuInsuranceFundFee = 50;
+    uint256 public apolloInsuranceFundFee = 50;
     uint256 public sellFee = 20;
     uint256 public firePitFee = 25;
-    uint256 public totalFee = liquidityFee + treasuryFee + safuuInsuranceFundFee + firePitFee;
+    uint256 public totalFee = liquidityFee + treasuryFee + apolloInsuranceFundFee + firePitFee;
     uint256 public feeDenominator = 1000;
 
     uint256 public _initRebaseStartTime;
@@ -44,7 +44,7 @@ contract Apollo is IApollo, Ownable {
     IUniswapV2Router02 public router;
     address public autoLiquidityReceiver;
     address public treasuryReceiver;
-    address public safuuInsuranceFundReceiver;
+    address public apolloInsuranceFundReceiver;
     address public firePit;
     address public pair;
 
@@ -81,7 +81,7 @@ contract Apollo is IApollo, Ownable {
 
         autoLiquidityReceiver = 0xE1A0b2a8FF9C17b80f558eC002e7E857c0D062FD; //2
         treasuryReceiver = 0xfFde24E2Ab5f2c9cbc95118777cD68a4aAF05647; //1
-        safuuInsuranceFundReceiver = 0x6e1D3DD0fC635805bEE48eFDad5D6f4A3a4508BE; //3
+        apolloInsuranceFundReceiver = 0x6e1D3DD0fC635805bEE48eFDad5D6f4A3a4508BE; //3
         firePit = 0x9186E356cC60A5E07C400929E7E13503a538039a; //4
 
         _allowedFragments[address(this)][address(_router)] = type(uint256).max;
@@ -218,7 +218,7 @@ contract Apollo is IApollo, Ownable {
 
         _gonBalances[firePit] = _gonBalances[firePit].add(gonAmount.div(feeDenominator).mul(firePitFee));
         _gonBalances[address(this)] = _gonBalances[address(this)].add(
-            gonAmount.div(feeDenominator).mul(_treasuryFee.add(safuuInsuranceFundFee))
+            gonAmount.div(feeDenominator).mul(_treasuryFee.add(apolloInsuranceFundFee))
         );
         _gonBalances[autoLiquidityReceiver] = _gonBalances[autoLiquidityReceiver].add(
             gonAmount.div(feeDenominator).mul(liquidityFee)
@@ -293,17 +293,17 @@ contract Apollo is IApollo, Ownable {
 
         usdcToken.transfer(
             treasuryReceiver,
-            (amountUsdcToTreasuryAndSIF * treasuryFee) / (treasuryFee + safuuInsuranceFundFee)
+            (amountUsdcToTreasuryAndSIF * treasuryFee) / (treasuryFee + apolloInsuranceFundFee)
         );
         usdcToken.transfer(
-            safuuInsuranceFundReceiver,
-            (amountUsdcToTreasuryAndSIF * safuuInsuranceFundFee) / (treasuryFee + safuuInsuranceFundFee)
+            apolloInsuranceFundReceiver,
+            (amountUsdcToTreasuryAndSIF * apolloInsuranceFundFee) / (treasuryFee + apolloInsuranceFundFee)
         );
     }
 
     function withdrawAllToTreasury() external swapping onlyOwner {
         uint256 amountToSwap = _gonBalances[address(this)].div(_gonsPerFragment);
-        require(amountToSwap > 0, "There is no Safuu token deposited in token contract");
+        require(amountToSwap > 0, "There is no Apollo token deposited in token contract");
         address[] memory path = new address[](2);
         path[0] = address(this);
         path[1] = address(usdcToken);
@@ -398,12 +398,12 @@ contract Apollo is IApollo, Ownable {
     function setFeeReceivers(
         address _autoLiquidityReceiver,
         address _treasuryReceiver,
-        address _safuuInsuranceFundReceiver,
+        address _apolloInsuranceFundReceiver,
         address _firePit
     ) external onlyOwner {
         autoLiquidityReceiver = _autoLiquidityReceiver;
         treasuryReceiver = _treasuryReceiver;
-        safuuInsuranceFundReceiver = _safuuInsuranceFundReceiver;
+        apolloInsuranceFundReceiver = _apolloInsuranceFundReceiver;
         firePit = _firePit;
     }
 

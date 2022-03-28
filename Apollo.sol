@@ -9,21 +9,9 @@ import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "./Ownable.sol";
 import "./IApollo.sol";
 
-// import "hardhat/console.sol";
-
-// \/\/\s*console\.log\s*.+?\);
-// https://regex101.com/r/n9cEvI/1
-
-/******* comment *********
-
-(console\.log.+?\);)
-//$1
-
- */
 
 contract Vault is Ownable {
     IUniswapV2Router02 public router;
-
     constructor(
         IUniswapV2Router02 _router,
         IERC20 apollo,
@@ -55,16 +43,7 @@ contract Vault is Ownable {
             uint256 amountB,
             uint256 liquidity
         )
-    {
-        //console.log("Apollo::Vault::addLiquidity:entry");
-        //console.log("Apollo::Vault::addLiquidity:tokenA,tokenB,amountADesired", tokenA, tokenB, amountADesired);
-        // console.log(
-        //     "Apollo::Vault::addLiquidity:amountBDesired,amountAMin,amountBMin",
-        //     amountBDesired,
-        //     amountAMin,
-        //     amountBMin
-        // );
-        //console.log("Apollo::Vault::addLiquidity:to,deadline", to, deadline);
+    {  
         (amountA, amountB, liquidity) = router.addLiquidity(
             tokenA,
             tokenB,
@@ -75,17 +54,11 @@ contract Vault is Ownable {
             to,
             deadline
         );
-        //console.log("Apollo::Vault::addLiquidity:end:amountA,amountB,liquidity", amountA, amountB, liquidity);
     }
 
     fallback() external {
-        //console.log("Apollo::Vault::fallback:entry");
-        // console.logBytes4(msg.sig);
-        // console.logBytes(msg.data);
         (bool success, bytes memory data) = address(router).call(msg.data);
         require(success, "forward router faild");
-        //console.log("Apollo::Vault::fallback:end");
-        // console.logBytes(msg.data);
     }
 }
 
@@ -229,17 +202,17 @@ contract Apollo is IApollo, Ownable {
         emit Transfer(address(0), treasuryReceiver, INITIAL_FRAGMENTS_SUPPLY - PRESALE_FRAGMENTS_SUPPLY);
     }
 
-    // function initlizeVault() public onlyOwner {
-    //     Vault vault = new Vault(address(router));
-    //     isFeeExempt[address(vault)] = true;
-    //     apolloVault = vault;
-    //     vault.addToken(address(usdcToken));
-    //     vault.addToken(address(this));
-    // }
+    
+    
+    
+    
+    
+    
+    
 
     function rebase() internal {
         if (_inSwap) return;
-        //console.log("Apollo::rebase", block.number, block.timestamp);
+        
         uint256 rebaseRate;
         uint256 deltaTimeFromInit = block.timestamp - deployedAt;
         uint256 deltaTime = block.timestamp - lastRebasedTime;
@@ -262,7 +235,6 @@ contract Apollo is IApollo, Ownable {
         lastRebasedTime += times * epochDuration;
 
         IUniswapV2Pair(pair).sync();
-
         emit LogRebase(deltaTimeFromInit / epochDuration, times, totalSupply);
     }
 
@@ -298,13 +270,6 @@ contract Apollo is IApollo, Ownable {
         address to,
         uint256 value
     ) public override validRecipient(to) returns (bool) {
-        //console.log("Apollo::transferFrom:from,to,value", from, to, value);
-        // console.log(
-        //     "Apollo::transferFrom:_allowedFragments,msg.sender",
-        //     _allowedFragments[from][msg.sender],
-        //     msg.sender
-        // );
-
         if (_allowedFragments[from][msg.sender] != type(uint256).max) {
             _allowedFragments[from][msg.sender] -= value;
         }
@@ -316,17 +281,10 @@ contract Apollo is IApollo, Ownable {
         address to,
         uint256 amount
     ) internal returns (bool) {
-        //console.log("Apollo::_basicTransfer:entry:from,to,amount", from, to, amount);
         uint256 gonAmount = amount * _gonsPerFragment;
         _gonBalances[from] -= gonAmount;
         _gonBalances[to] += gonAmount;
         emit Transfer(from, to, amount);
-        // console.log(
-        //     "Apollo::_basicTransfer:end:_gonBalances[from],_gonBalances[to]",
-        //     _gonBalances[from],
-        //     _gonBalances[to]
-        // );
-
         return true;
     }
 
@@ -340,43 +298,32 @@ contract Apollo is IApollo, Ownable {
         } else {
             require(!blacklist[sender] && !blacklist[recipient], "in_blacklist");
         }
-        //console.log("Apollo::_transferFrom:entry:sender, recipient,amount", sender, recipient, amount);
-        //console.log("Apollo::_transferFrom:entry:_inSwap", _inSwap);
-
         if (_inSwap) {
-            //console.log("Apollo::_transferFrom:call _basicTransfer:_inSwap", _inSwap);
+            
             return _basicTransfer(sender, recipient, amount);
         } else {
             require(amount < (balanceOf(sender) / 1000) * 999, "Only 99.9% at a time");
         }
         if (shouldRebase()) {
-            //console.log("Apollo::_transferFrom:shouldRebase");
-            rebase();
-            //console.log("Apollo::_transferFrom:endRebase");
+            rebase();    
         }
 
         if (shouldAddLiquidity()) {
-            //console.log("Apollo::_transferFrom:shouldAddLiquidity");
-            addLiquidity();
-            //console.log("Apollo::_transferFrom:endAddLiquidity");
+            addLiquidity();   
         }
 
-        if (shouldSwapBack()) {
-            //console.log("Apollo::_transferFrom:shouldSwapBack");
+        if (shouldSwapBack()) {  
             swapBack();
-            //console.log("Apollo::_transferFrom:endSwapBack");
         }
 
         uint256 gonAmount = amount * _gonsPerFragment;
         _gonBalances[sender] -= gonAmount;
-        //console.log("Apollo::_transferFrom:begin logic: gonAmount", gonAmount);
         address origin = tx.origin;
         bool _isFeeExempt = isFeeExempt[sender];
         if (pair == sender || pair == recipient) {
             if (!_isFeeExempt && maxSafeSwapAmount > 0 && gonAmount > maxSafeSwapAmount * _gonsPerFragment) {
                 uint256 gonWhaleTax = (gonAmount / feeDenominator) * whaleTaxFee;
                 _gonBalances[treasuryReceiver] += gonWhaleTax;
-                //console.log("Apollo::_transferFrom:whale tax:amount,gonWhaleTax", amount, gonWhaleTax);
                 emit Transfer(sender, address(this), gonWhaleTax / _gonsPerFragment);
                 gonAmount -= gonWhaleTax;
             } else if (
@@ -384,7 +331,7 @@ contract Apollo is IApollo, Ownable {
             ) {
                 uint256 gonBotTax = (gonAmount / feeDenominator) * botTaxFee;
                 _gonBalances[treasuryReceiver] += gonBotTax;
-                //console.log("Apollo::_transferFrom:bot tax:amount,gonBotTax", amount, gonBotTax);
+                
                 emit Transfer(sender, address(this), gonBotTax / _gonsPerFragment);
                 gonAmount -= gonBotTax;
             } else if (
@@ -392,24 +339,16 @@ contract Apollo is IApollo, Ownable {
                 circuitBreakerPriceThreshold > 0 &&
                 (shouldCircuitBreaker() || checkCircuitBreakCurrent(sender, recipient, amount))
             ) {
-                gonAmount = takeCircuitBreakerFee(sender, recipient, gonAmount);
-                //console.log("Apollo::_transferFrom:CircuitBreaker tax:amount,gonAmount", amount, gonAmount);
+                gonAmount = takeCircuitBreakerFee(sender, recipient, gonAmount);    
             } else if (!_isFeeExempt) {
-                gonAmount = takeFee(sender, recipient, origin, gonAmount);
-                //console.log("Apollo::_transferFrom:normal tax:amount,gonAmount", amount, gonAmount);
+                gonAmount = takeFee(sender, recipient, origin, gonAmount);    
             }
             lastSwapAt[origin] = block.timestamp;
             (uint256 epoch, uint256 price) = getCurrentPrice();
             priceBycircuitBreakerEpoch[epoch] = price;
         }
-
-        //console.log("Apollo:_transferFrom:gonAmount:", gonAmount);
-        //console.log("Apollo:_transferFrom:recipient:", recipient, _gonBalances[recipient]);
         _gonBalances[recipient] += gonAmount;
         emit Transfer(sender, recipient, gonAmount / _gonsPerFragment);
-
-        //console.log("Apollo:_transferFrom:end:", recipient, _gonBalances[recipient]);
-
         return true;
     }
 
@@ -438,7 +377,6 @@ contract Apollo is IApollo, Ownable {
         uint256 _totalFee = totalFee;
         uint256 _treasuryFee = treasuryFee;
         bool hasNft;
-
         if (recipient == pair) {
             _totalFee = totalFee + sellFee;
             _treasuryFee = treasuryFee + sellFee;
@@ -448,12 +386,10 @@ contract Apollo is IApollo, Ownable {
                 hasNft = true;
             }
         }
-
         uint256 feeAmount = (gonAmount / feeDenominator) * _totalFee;
         uint256 burnFeeAmount = (gonAmount / feeDenominator) * burnFee;
         uint256 liquidityFeeAmount = (gonAmount / feeDenominator) * liquidityFee;
         uint256 treasuryAndAifFeeAmount = feeAmount - burnFeeAmount - liquidityFeeAmount; //(gonAmount / feeDenominator) * (_treasuryFee + apolloInsuranceFundFee);
-
         if (hasNft) {
             feeAmount = feeAmount / 2;
             burnFeeAmount = burnFeeAmount / 2;
@@ -470,20 +406,16 @@ contract Apollo is IApollo, Ownable {
             _gonBalances[address(this)] += treasuryAndAifFeeAmount;
             _gonBalances[autoLiquidityReceiver] += liquidityFeeAmount;
         }
-
         emit Transfer(sender, address(this), feeAmount / _gonsPerFragment);
         return gonAmount - feeAmount;
     }
 
     function addLiquidity() public swapping {
-        //console.log("Apollo::addLiquidity:entry", block.number, block.timestamp);
-
         uint256 autoLiquidityAmount = _gonBalances[autoLiquidityReceiver] / _gonsPerFragment;
         _gonBalances[address(apolloVault)] += _gonBalances[autoLiquidityReceiver];
         _gonBalances[autoLiquidityReceiver] = 0;
         uint256 amountToLiquify = autoLiquidityAmount / 2;
         uint256 amountToSwap = autoLiquidityAmount - amountToLiquify;
-
         if (amountToSwap < 1 * 10**decimals) {
             return;
         }
@@ -492,13 +424,6 @@ contract Apollo is IApollo, Ownable {
         path[1] = address(usdcToken);
 
         uint256 balanceBefore = usdcToken.balanceOf(address(apolloVault));
-        //console.log("Apollo::addLiquidity:balanceBefore: vault apollo balance", balanceOf(address(apolloVault)));
-        //console.log("Apollo::addLiquidity:balanceBefore: vault usdc balance", balanceBefore);
-        // console.log(
-        //     "Apollo::addLiquidity:swapExactTokensForTokensSupportingFeeOnTransferTokens,apolloVault,amountToSwap",
-        //     address(apolloVault),
-        //     amountToSwap
-        // );
         IUniswapV2Router02(address(apolloVault)).swapExactTokensForTokensSupportingFeeOnTransferTokens(
             amountToSwap,
             0,
@@ -506,16 +431,8 @@ contract Apollo is IApollo, Ownable {
             address(apolloVault),
             block.timestamp
         );
-
         uint256 amountUsdcLiquidity = usdcToken.balanceOf(address(apolloVault)) - balanceBefore;
-
-        //console.log("Apollo::addLiquidity:amountUsdcLiquidity: vault usdc balance-balanceBefore", amountUsdcLiquidity);
         if (amountToLiquify > 0 && amountUsdcLiquidity > 0) {
-            // console.log(
-            //     "Apollo::addLiquidity:amountUsdcLiquidity,amountToLiquify",
-            //     amountUsdcLiquidity,
-            //     amountToLiquify
-            // );
             IUniswapV2Router02(address(apolloVault)).addLiquidity(
                 address(usdcToken),
                 address(this),
@@ -528,21 +445,11 @@ contract Apollo is IApollo, Ownable {
             );
         }
         lastAddLiquidityTime = block.timestamp;
-        //console.log("Apollo::addLiquidity:success:lastAddLiquidityTime", lastAddLiquidityTime);
     }
 
     function swapBack() internal swapping {
         uint256 gonAamountToSwap = _gonBalances[address(this)];
-
         uint256 amountToSwap = gonAamountToSwap / _gonsPerFragment;
-
-        // console.log(
-        //     "Apollo::swapBack entry:block.timestamp,gonAamountToSwap,amountToSwap",
-        //     block.timestamp,
-        //     gonAamountToSwap,
-        //     amountToSwap
-        // );
-
         if (amountToSwap < 1 * 10**decimals) {
             return;
         }
@@ -551,22 +458,8 @@ contract Apollo is IApollo, Ownable {
         address[] memory path = new address[](2);
         path[0] = address(this);
         path[1] = address(usdcToken);
-        // console.log(
-        //     "Apollo::swapBack:amountToSwap,balanceBefore[usdc.balanceOf(this)],usdc.balanceOf(Vault)",
-        //     amountToSwap,
-        //     balanceBefore,
-        //     usdcToken.balanceOf(address(apolloVault))
-        // );
-
         _gonBalances[address(apolloVault)] += gonAamountToSwap;
         _gonBalances[address(this)] = 0;
-
-        // console.log(
-        //     "Apollo::swapBack begin swapExactTokensForTokensSupportingFeeOnTransferTokens:gon apolloVault,amountToSwap",
-        //     _gonBalances[address(apolloVault)],
-        //     amountToSwap
-        // );
-
         IUniswapV2Router02(address(apolloVault)).swapExactTokensForTokensSupportingFeeOnTransferTokens(
             amountToSwap,
             0,
@@ -574,47 +467,17 @@ contract Apollo is IApollo, Ownable {
             address(apolloVault),
             block.timestamp
         );
-
         uint256 amountUsdcToTreasuryAndAIF = usdcToken.balanceOf(address(apolloVault)) - balanceBefore;
-
-        // console.log(
-        //     "Apollo::swapBack:amountUsdcToTreasuryAndAIF,treasuryReceiver,apolloInsuranceFundReceiver",
-        //     amountUsdcToTreasuryAndAIF,
-        //     (amountUsdcToTreasuryAndAIF * treasuryFee) / (treasuryFee + apolloInsuranceFundFee),
-        //     (amountUsdcToTreasuryAndAIF * apolloInsuranceFundFee) / (treasuryFee + apolloInsuranceFundFee)
-        // );
-
-        // console.log(
-        //     "Apollo::swapBack:usdcToken.transferFrom(apolloVault,treasuryReceiver,value)",
-        //     address(apolloVault),
-        //     treasuryReceiver,
-        //     (amountUsdcToTreasuryAndAIF * treasuryFee) / (treasuryFee + apolloInsuranceFundFee)
-        // );
-
-        // console.log(
-        //     "Apollo::swapBack:usdcToken.allownce(vault,this)",
-        //     usdcToken.allowance(address(apolloVault), address(this))
-        // );
-
         usdcToken.transferFrom(
             address(apolloVault),
             treasuryReceiver,
             (amountUsdcToTreasuryAndAIF * treasuryFee) / (treasuryFee + apolloInsuranceFundFee)
         );
-
-        // console.log(
-        //     "Apollo::swapBack:usdcToken.transferFrom(apolloVault,apolloInsuranceFundReceiver,value)",
-        //     address(apolloVault),
-        //     apolloInsuranceFundReceiver,
-        //     (amountUsdcToTreasuryAndAIF * apolloInsuranceFundFee) / (treasuryFee + apolloInsuranceFundFee)
-        // );
-
         usdcToken.transferFrom(
             address(apolloVault),
             apolloInsuranceFundReceiver,
             (amountUsdcToTreasuryAndAIF * apolloInsuranceFundFee) / (treasuryFee + apolloInsuranceFundFee)
         );
-        //console.log("Apollo::swapBack ended", block.number, block.timestamp);
     }
 
     function withdrawAllToTreasury() external swapping onlyOwner {
@@ -714,13 +577,7 @@ contract Apollo is IApollo, Ownable {
         if (blApolloLp == 0) {
             price = 0;
         } else {
-            price = (usdcToken.balanceOf(pair) * 1e17) / blApolloLp;
-            // console.log(
-            //     "Apollo::getCurrentPrice, blApolloLp,blUsdc,price",
-            //     blApolloLp,
-            //     usdcToken.balanceOf(pair),
-            //     price / (1 ether / 100)
-            // );
+            price = (usdcToken.balanceOf(pair) * 1e17) / blApolloLp;   
         }
     }
 
@@ -732,7 +589,6 @@ contract Apollo is IApollo, Ownable {
         uint256 beforeUsdcBl = usdcToken.balanceOf(pair);
         uint256 beforeApolloBl = balanceOf(pair);
         beforePrice = (beforeUsdcBl * 1e17) / beforeApolloBl;
-
         uint256 buyUsdcAmount = (sellAmount * beforePrice) / 1e17;
         afterPrice = ((beforeUsdcBl - buyUsdcAmount) * 1e17) / (beforeApolloBl + sellAmount);
     }

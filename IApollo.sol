@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: Unlicensed
 
 // Apollo PROTOCOL COPYRIGHT (C) 2022
 
